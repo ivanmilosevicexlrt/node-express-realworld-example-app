@@ -94,7 +94,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.AWS_ACCOUNT_ID_PROD }}.dkr.ecr.${{ env.AWS_REGION }}://incodedemo-api:${{ github.sha }}
-            ${{ secrets.AWS_ACCOUNT_ID_PROD }}.dkr.ecr.${{ env.AWS_REGION }}://incodedemo-api:latest
+            ${{ secrets.AWS_ACCOUNT_ID_PROD }}.dkr.ecr.${{ env.AWS_REGION }}/incodedemo-api:${{ github.sha }}
+            ${{ secrets.AWS_ACCOUNT_ID_PROD }}.dkr.ecr.${{ env.AWS_REGION }}/incodedemo-api:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
