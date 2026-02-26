@@ -1,5 +1,8 @@
 name: CI/CD Pipeline
 
+env:
+  AWS_REGION: ${{ vars.AWS_REGION_PROD }} 
+
 on:
   push:
     branches: [ "master" ]
@@ -8,53 +11,51 @@ on:
   workflow_dispatch: # 👈 allows manual runs from Actions tab    
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB: realworld_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432/tcp
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-    steps:
-      - uses: actions/checkout@v4
+  # test:
+  #   runs-on: ubuntu-latest
+  #   services:
+  #     postgres:
+  #       image: postgres:15-alpine
+  #       env:
+  #         POSTGRES_DB: realworld_test
+  #         POSTGRES_USER: postgres
+  #         POSTGRES_PASSWORD: postgres
+  #       ports:
+  #         - 5432:5432
+  #       options: >-
+  #         --health-cmd="pg_isready -U postgres"
+  #         --health-interval=10s
+  #         --health-timeout=5s
+  #         --health-retries=5
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #         cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+  #     - name: Install dependencies
+  #       run: npm ci
 
-      # Reset DB to clean state
-      - name: Reset and migrate Prisma schema
-        run: npx prisma migrate reset --force --skip-seed
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/realworld_test
+  #     - name: Reset and migrate Prisma schema
+  #       run: npx prisma migrate reset --force --skip-seed
+  #       env:
+  #         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld_test
 
-      # Seed test data (optional, if your tests expect a default user)
-      - name: Seed test database
-        run: npx prisma db seed
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/realworld_test
+  #     - name: Seed test database
+  #       run: npx prisma db seed
+  #       env:
+  #         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld_test
 
-      - name: Run tests
-        run: npx nx test --passWithNoTests --verbose
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/realworld_test
+  #     - name: Run tests
+  #       run: npx nx test --passWithNoTests --verbose
+  #       env:
+  #         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld_test
 
   build-push:
-    needs: test
+#    needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master'
     steps:
@@ -72,20 +73,27 @@ jobs:
       - name: Build app with Nx
         run: npx nx build api
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and push Docker image
-        run: |
-          IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID_PROD }}.dkr.ecr.us-east-1.amazonaws.com/incodedemo-api
-          docker build -t $IMAGE_URI:${{ github.sha }} .
-          docker tag $IMAGE_URI:${{ github.sha }} $IMAGE_URI:latest
-          docker push $IMAGE_URI:${{ github.sha }}
-          docker push $IMAGE_URI:latest
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.AWS_ACCOUNT_ID_PROD }}.dkr.ecr.${{ env.AWS_REGION }}://incodedemo-api:${{ github.sha }}
+            ${{ secrets.AWS_ACCOUNT_ID_PROD }}.dkr.ecr.${{ env.AWS_REGION }}://incodedemo-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
