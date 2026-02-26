@@ -1,15 +1,60 @@
-name: Docker Image Node Express
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+  workflow_dispatch:   # 👈 allows manual runs from Actions tab
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: realworld_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Reset and migrate Prisma schema
+        run: npx prisma migrate reset --force --skip-seed
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/realworld_test
+
+      - name: Seed test database
+        run: npx prisma db seed
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/realworld_test
+
+      - name: Run tests
+        run: npx nx test --passWithNoTests --verbose
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/realworld_test
+
+  build-push:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v4
 
@@ -25,5 +70,20 @@ jobs:
       - name: Build app with Nx
         run: npx nx build api
 
-      - name: Build Docker image
-        run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID_PROD }}.dkr.ecr.us-east-1.amazonaws.com/incodedemo-api
+          docker build -t $IMAGE_URI:${{ github.sha }} .
+          docker tag $IMAGE_URI:${{ github.sha }} $IMAGE_URI:latest
+          docker push $IMAGE_URI:${{ github.sha }}
+          docker push $IMAGE_URI:latest
