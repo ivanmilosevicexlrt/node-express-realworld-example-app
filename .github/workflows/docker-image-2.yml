@@ -19,7 +19,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd pg_isready -U postgres
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -35,13 +35,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Prisma migrations
-        run: npx prisma migrate deploy
+      # Reset DB to clean state
+      - name: Reset and migrate Prisma schema
+        run: npx prisma migrate reset --force --skip-seed
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld_test
+
+      # Seed test data (optional, if your tests expect a default user)
+      - name: Seed test database
+        run: npx prisma db seed
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld_test
 
       - name: Run tests
-        run: npx nx test --passWithNoTests
+        run: npx nx test --passWithNoTests --verbose
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld_test
 
