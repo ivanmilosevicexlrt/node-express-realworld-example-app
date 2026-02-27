@@ -52,7 +52,7 @@ const main = async () => {
     }
   } catch (e) {
     console.error(e);
-
+    process.exit(1);
   }
 };
 
@@ -64,3 +64,4 @@ main()
     await prisma.$disconnect();
     process.exit(1);
   });
+
