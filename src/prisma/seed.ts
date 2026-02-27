@@ -16,9 +16,9 @@ const prisma = new PrismaClient();
 
 export const generateUser = async (): Promise<RegisteredUser> =>
   createUser({
-    username: randFullName(),
-    email: randEmail(),
-    password: randPassword(),
+    username: randFullName() || 'Default User',
+    email: randEmail() || 'default@example.com',
+    password: randPassword() || 'defaultpassword',
     image: 'https://api.realworld.io/images/demo-avatar.png',
     demo: true,
   });
@@ -26,16 +26,16 @@ export const generateUser = async (): Promise<RegisteredUser> =>
 export const generateArticle = async (id: number) =>
   createArticle(
     {
-      title: randPhrase(),
-      description: randParagraph(),
-      body: randLines({ length: 10 }).join(' '),
+      title: randPhrase() || 'Default Title',
+      description: randParagraph() || 'Default Description',
+      body: randLines({ length: 10 }).join(' ') || 'Default Body',
       tagList: randWord({ length: 4 }).map(w => `${w}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`),
     },
     id,
   );
 
 export const generateComment = async (id: number, slug: string) =>
-  addComment(randParagraph(), slug, id);
+  addComment(randParagraph() || 'Default Comment', slug, id);
 
 const main = async () => {
   try {
