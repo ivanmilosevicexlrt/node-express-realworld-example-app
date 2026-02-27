@@ -8,7 +8,7 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
-  workflow_dispatch: # 👈 allows manual runs from Actions tab    
+  workflow_dispatch:
 
 jobs:
   test:
@@ -33,7 +33,7 @@ jobs:
       - name: JustDemo
         run: echo "Running tests for branch $GITHUB_REF_NAME"
         shell: bash
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -46,8 +46,8 @@ jobs:
           path: ~/.npm 
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }} 
           restore-keys: | 
-            ${{ runner.os }}-node-   
-            
+            ${{ runner.os }}-node-
+
       - name: Install dependencies
         run: npm ci --prefer-offline
 
@@ -66,55 +66,55 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/realworld_test
 
-#   build-push:
-#     needs: test
-#     runs-on: ubuntu-latest
-#     environment: PROD
-#     if: github.ref == 'refs/heads/master'
-#     steps:
-#       - uses: actions/checkout@v4
+  build-push:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: PROD
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
 
-#       - name: Setup Node.js
-#         uses: actions/setup-node@v4
-#         with:
-#           node-version: 20
-#           cache: npm
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
 
-#       - name: Cache 
-#         uses: actions/cache@v4 
-#         with:
-#           path: ~/.npm 
-#           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }} 
-#           restore-keys: | 
-#             ${{ runner.os }}-node-     
+      - name: Cache 
+        uses: actions/cache@v4 
+        with:
+          path: ~/.npm 
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }} 
+          restore-keys: | 
+            ${{ runner.os }}-node-
 
-#       - name: Install dependencies
-#         run: npm ci --prefer-offline
+      - name: Install dependencies
+        run: npm ci --prefer-offline
 
-#       - name: Build app with Nx
-#         run: npx nx build api
+      - name: Build app with Nx
+        run: npx nx build api
 
-#       - name: Set up Docker Buildx
-#         uses: docker/setup-buildx-action@v3
-        
-#       - name: Configure AWS credentials
-#         uses: aws-actions/configure-aws-credentials@v4
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
-#           aws-region: ${{ env.AWS_REGION }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-#       - name: Login to Amazon ECR
-#         id: login-ecr
-#         uses: aws-actions/amazon-ecr-login@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
 
-#       - name: Build and push Docker image
-#         uses: docker/build-push-action@v6
-#         with:
-#           context: .
-#           push: true
-#           tags: |
-#             ${{ steps.login-ecr.outputs.registry }}/incodedemo-api:${{ github.sha }}
-#             ${{ steps.login-ecr.outputs.registry }}/incodedemo-api:latest
-#           cache-from: type=gha
-#           cache-to: type=gha,mode=max
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/incodedemo-api:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/incodedemo-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
