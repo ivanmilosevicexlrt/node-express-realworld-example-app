@@ -26,7 +26,7 @@ export const generateUser = async (): Promise<RegisteredUser> =>
 export const generateArticle = async (id: number) =>
   createArticle(
     {
-      title: randPhrase() || 'Default Title',
+      title: `${randPhrase()}-${id}-${Date.now()}`,
       description: randParagraph() || 'Default Description',
       body: randLines({ length: 10 }).join(' ') || 'Default Body',
       tagList: randWord({ length: 4 }).map(w => `${w}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`),
