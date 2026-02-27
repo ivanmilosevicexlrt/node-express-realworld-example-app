@@ -13,7 +13,6 @@
     "schema": "src/prisma/schema.prisma"
   },
   "dependencies": {
-    "@ngneat/falso": "^7.1.1",
     "@prisma/client": "^4.16.1",
     "axios": "^1.0.0",
     "bcryptjs": "^2.4.3",
@@ -26,6 +25,7 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
+    "@ngneat/falso": "^8.0.2",
     "@nx/esbuild": "17.2.6",
     "@nx/eslint": "17.2.6",
     "@nx/eslint-plugin": "17.2.6",
