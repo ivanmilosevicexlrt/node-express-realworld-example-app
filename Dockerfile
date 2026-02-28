@@ -7,6 +7,8 @@ RUN npm ci --omit=dev
 
 FROM base AS runner
 
+# Install OpenSSL 1.1 for Prisma
+RUN apk add --no-cache openssl1.1
 ENV HOST=0.0.0.0
 ENV PORT=3000
 ENV NODE_ENV=production
