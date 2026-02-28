@@ -1,4 +1,5 @@
-FROM docker.io/node:lts-alpine AS base
+#FROM docker.io/node:lts-alpine AS base
+FROM node:18-alpine3.16 AS base
 
 FROM base AS deps
 WORKDIR /app
@@ -8,7 +9,7 @@ RUN npm ci --omit=dev
 FROM base AS runner
 
 # Install OpenSSL 1.1 for Prisma
-RUN apk add --no-cache openssl1.1 --no-cache libssl1.1-compat
+
 ENV HOST=0.0.0.0
 ENV PORT=3000
 ENV NODE_ENV=production
