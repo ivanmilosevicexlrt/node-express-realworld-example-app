@@ -1,4 +1,5 @@
-FROM docker.io/node:lts-alpine AS base
+#FROM docker.io/node:lts-alpine AS base
+FROM node:18-alpine3.16 AS base
 
 FROM base AS deps
 WORKDIR /app
@@ -6,6 +7,8 @@ COPY dist/api/package*.json ./
 RUN npm ci --omit=dev
 
 FROM base AS runner
+
+# Install OpenSSL 1.1 for Prisma
 
 ENV HOST=0.0.0.0
 ENV PORT=3000
