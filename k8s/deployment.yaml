@@ -14,21 +14,41 @@ spec:
       labels:
         app: incodedemo-api
     spec:
+      # --- AFFINITY SECTION ---
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            # Rule 1: High Priority - Spread across Availability Zones
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: incodedemo-api
+                topologyKey: "topology.kubernetes.io/zone"
+            # Rule 2: Medium Priority - Spread across individual Nodes
+            - weight: 50
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: incodedemo-api
+                topologyKey: "kubernetes.io/hostname"
+      # ------------------------------
       containers:
         - name: api
           image: 485876940116.dkr.ecr.us-east-1.amazonaws.com/incodedemo-api:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
           env:
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: db-credentials
+                  name: db-credentials-sec-store
                   key: DB_USER
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: db-credentials
+                  name: db-credentials-sec-store
                   key: DB_PASSWORD
             - name: DB_HOST
               valueFrom:
@@ -43,23 +63,23 @@ spec:
               value: "3000"
           resources:
             requests:
-              cpu: "100m"
-              memory: "128Mi"
+              cpu: "250m"
+              memory: "512Mi"
             limits:
               cpu: "500m"
               memory: "512Mi"
-          livenessProbe:
-            httpGet:
-              path: /api/health
-              port: 3000
-            initialDelaySeconds: 15
-            periodSeconds: 20
-          readinessProbe:
-            httpGet:
-              path: /api/health
-              port: 3000
-            initialDelaySeconds: 10
-            periodSeconds: 10
+          # livenessProbe:
+          #   httpGet:
+          #     path: /api/health
+          #     port: 3000
+          #   initialDelaySeconds: 15
+          #   periodSeconds: 20
+          # readinessProbe:
+          #   httpGet:
+          #     path: /api/health
+          #     port: 3000
+          #   initialDelaySeconds: 10
+          #   periodSeconds: 10
 ---
 apiVersion: v1
 kind: Service
@@ -82,12 +102,12 @@ kind: Ingress
 metadata:
   name: incodedemo-api
   annotations:
-    kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/healthcheck-path: /api/health
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
 spec:
+  ingressClassName: alb   
   rules:
     - http:
         paths:
@@ -116,10 +136,33 @@ spec:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 70
+          averageUtilization: 85
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
           averageUtilization: 80
+  behavior:      
+      scaleUp:
+        stabilizationWindowSeconds: 600   
+        policies:
+          - type: Pods
+            value: 1
+            periodSeconds: 60
+      scaleDown:
+        stabilizationWindowSeconds: 300  
+        policies:
+          - type: Pods
+            value: 1
+            periodSeconds: 60
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: incodedemo-api-pdb
+spec:
+  maxUnavailable: 25% 
+  selector:
+    matchLabels:
+      app: incodedemo-api 
